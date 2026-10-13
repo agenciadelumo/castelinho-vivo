@@ -1,0 +1,5 @@
+Coloque aqui o video final da Cidade Limpa (drone transformado no Seedance), com no maximo 1 minuto, com o nome:
+
+  cidade_limpa.mp4
+
+O jogo toca o video sozinho no comeco de "A cidade de amanha" (Fase 3).
