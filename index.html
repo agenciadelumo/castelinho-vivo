@@ -17,6 +17,11 @@
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0e2a1c; }
     body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
       font-family: "Trebuchet MS", system-ui, -apple-system, "Segoe UI", sans-serif; }
+    /* cursor de madeira (seta maior, mais fácil de ver e de mirar) */
+    html, body, #unity-canvas, button {
+      cursor: url("cursor-madeira.png") 3 2, auto !important;
+      cursor: -webkit-image-set(url("cursor-madeira.png") 1x, url("cursor-madeira@2x.png") 2x) 3 2, auto !important;
+      cursor: image-set(url("cursor-madeira.png") 1x, url("cursor-madeira@2x.png") 2x) 3 2, auto !important; }
     /* o jogo respeita o recorte da câmera (Dynamic Island) e a barra de gestos */
     #unity-canvas { position: fixed; display: block; background: #0e2a1c; outline: none;
       top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
@@ -195,6 +200,12 @@
     var isMobile = isIOS || /Android|Mobi/i.test(ua) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820);
     var standalone = (window.matchMedia && matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches) || navigator.standalone === true;
     var canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+    // projetor / TV Android (navegador do aparelho, controle remoto): sem toque, tela grande e processador fraco
+    var forcedTV = /[?&]tv=(1|0)/.exec(location.search);
+    var isTV = forcedTV ? forcedTV[1] === "1" :
+      (/arm|aarch/i.test(navigator.platform || "") && !(navigator.maxTouchPoints > 0)) ||   // navegador do projetor em "modo computador" (finge ser Windows)
+      (/Android/i.test(ua) && (/\bTV\b|AFT|BRAVIA|Projector|Beam|MiBOX|SHIELD|Box|STB|HiSilicon|Allwinner|Amlogic|Rockchip/i.test(ua) || (!/Mobi/i.test(ua) && !(navigator.maxTouchPoints > 0))));
+    if (isTV) { isMobile = true; root.classList.add("tv"); }
     if (isMobile) root.classList.add("mobile");
     if (isIOS) root.classList.add("ios");
 
@@ -208,6 +219,7 @@
     window.addEventListener("orientationchange", function () { setTimeout(checkOrientation, 120); });
 
     if (isMobile) hint.textContent = "Ligue o som e, se puder, use Wi‑Fi: o jogo tem vídeos.";
+    if (isTV) hint.textContent = "Use as setas do controle para mover a seta e o OK para clicar. Na primeira vez o jogo leva alguns instantes para abrir.";
 
     // ---- imagens: ASTC nos celulares (Galaxy, iPhone), DXT nos computadores
     function supportsASTC() {
@@ -223,6 +235,37 @@
     var forced = /[?&]tex=(astc|dxt)/i.exec(location.search);
     var useASTC = forced ? forced[1].toLowerCase() === "astc" : supportsASTC();
 
+    // ---- botão do meio (OK) do controle "air mouse": vira um clique onde a seta do controle está
+    var ok = { x: -1, y: -1, last: "", down: false, started: false, at: 0, timer: 0 };
+    window.addEventListener("mousemove", function (e) { if (e.isTrusted) { ok.x = e.clientX; ok.y = e.clientY; ok.last = "mouse"; } }, true);
+    window.addEventListener("mousedown", function (e) { if (e.isTrusted) { ok.x = e.clientX; ok.y = e.clientY; ok.last = "mouse"; } }, true);
+    function isOkKey(e) { var k = e.key || "", c = e.keyCode || 0; return k === "Enter" || k === "Select" || k === "Accept" || c === 13 || c === 23 || c === 66 || c === 160; }
+    function okFire(type, buttons) {
+      var el = document.elementFromPoint(ok.x, ok.y) || canvas;
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, clientX: ok.x, clientY: ok.y, screenX: ok.x, screenY: ok.y, button: 0, buttons: buttons }));
+    }
+    function okRelease() {
+      if (!ok.down) return;
+      clearTimeout(ok.timer);
+      var wait = Math.max(0, 90 - (performance.now() - ok.at));   // segura o clique por um instante: o jogo nunca perde o toque
+      setTimeout(function () { if (!ok.down) return; ok.down = false; okFire("mouseup", 0); okFire("click", 0); }, wait);
+    }
+    window.addEventListener("keydown", function (e) {
+      if (/^Arrow/.test(e.key || "")) { ok.last = "keys"; return; }   // setas: quem cuida é a seta de madeira dentro do jogo
+      if (!ok.started || !isOkKey(e) || ok.last !== "mouse" || ok.x < 0) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      clearTimeout(ok.timer);
+      ok.timer = setTimeout(okRelease, 700);                       // se o controle não mandar "soltar", solta sozinho
+      if (ok.down) return;                                         // segurando o OK: dá para arrastar peças movendo o controle
+      ok.down = true; ok.at = performance.now();
+      okFire("mousedown", 1);
+    }, true);
+    window.addEventListener("keyup", function (e) {
+      if (!ok.down || !isOkKey(e)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      okRelease();
+    }, true);
+
     var buildUrl = "Build";
     var config = {
       arguments: [],
@@ -233,7 +276,9 @@
       companyName: "Delumo",
       productName: "Castelinho Vivo",
       productVersion: "1.0",
-      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+      // no projetor/TV a imagem é desenhada um pouco menor e ampliada: fica bem mais leve para o aparelho
+      devicePixelRatio: isTV ? (function () { var q = /[?&]q=([0-9.]+)/.exec(location.search); return q ? Math.max(0.4, Math.min(2, parseFloat(q[1]))) : 0.75; })()
+                             : Math.min(window.devicePixelRatio || 1, 2)
     };
 
     function showError(msg) {
@@ -279,7 +324,15 @@
         hint.textContent = "Ligue o som do aparelho.";
         var startBtn = document.getElementById("start");
         startBtn.focus();
+        // controle remoto: OK (Enter) ou qualquer seta também começa o jogo
+        var keyStart = function (ev) {
+          var k = ev.key || "", c = ev.keyCode;
+          if (k === "Enter" || c === 13 || c === 23 || c === 66 || /^Arrow/.test(k)) { ev.preventDefault(); document.removeEventListener("keydown", keyStart, true); startBtn.click(); }
+        };
+        document.addEventListener("keydown", keyStart, true);
         startBtn.onclick = function () {
+          document.removeEventListener("keydown", keyStart, true);
+          ok.started = true;
           try { instance.SendMessage("CastelinhoVivo", "WebStart"); } catch (e) {}
           if (canFullscreen && !standalone) {
             try { instance.SetFullscreen(1); } catch (e) {}

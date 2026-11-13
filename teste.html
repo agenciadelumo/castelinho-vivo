@@ -22,7 +22,7 @@
 </head>
 <body>
 <h1>Castelinho Vivo — teste do aparelho</h1>
-<p class="sub">Abra esta página no navegador do projetor. Depois aperte as setas e o OK do controle e tire uma foto da tela.</p>
+<p class="sub">Aponte o controle para o meio da tela e aperte o botão do meio (OK) 2 vezes. Depois role até o fim e tire uma foto.</p>
 <div id="verdict">Testando…</div>
 <table id="t"></table>
 <div id="keys">Teclas do controle: (aperte as setas e o OK)</div>
@@ -39,7 +39,8 @@
   add("Memória (RAM)", mem ? mem + " GB" : "não informado", mem && mem < 2 ? "warn" : "");
   if (mem && mem < 2) warns.push("pouca memória");
   add("Núcleos", navigator.hardwareConcurrency || "não informado");
-  var is64 = /aarch64|arm64|x86_64|x64|Win64|WOW64/i.test(ua + " " + (navigator.platform || ""));
+  var plat = navigator.platform || "";
+  var is64 = /arm/i.test(plat) ? /aarch64|arm64/i.test(plat) : /aarch64|arm64|x86_64|x64|Win64|WOW64/i.test(ua + " " + plat);
   add("Plataforma", (navigator.platform || "?") + (is64 ? " (64 bits)" : " (provavelmente 32 bits)"), is64 ? "" : "warn");
 
   // WebAssembly
@@ -55,8 +56,21 @@
       if (!ok && t[0] === 4096) warns.push("limite de 4 GB recusado");
       if (!ok && t[0] === 2048) problems.push("memória do jogo recusada");
     });
-    try { var big = new WebAssembly.Memory({ initial: 16 * 400 }); add("Reservar 400 MB agora", "sim", "ok"); big = null; }
-    catch (e) { add("Reservar 400 MB agora", "não (" + e.message + ")", "bad"); problems.push("não reserva 400 MB"); }
+    // maior bloco de memória que o navegador consegue reservar de uma vez (o jogo precisa de um bloco só)
+    var lo = 0, hi = 1024;
+    while (hi - lo > 8) {
+      var mid = Math.floor((lo + hi) / 2 / 8) * 8, okm = false;
+      try { var mm = new WebAssembly.Memory({ initial: mid * 16 }); okm = true; mm = null; } catch (e) { okm = false; }
+      if (okm) lo = mid; else hi = mid;
+    }
+    window.__maxMB = lo;
+    add("Maior bloco de memória", lo + " MB", lo >= 400 ? "ok" : (lo >= 256 ? "warn" : "bad"));
+    if (lo < 256) problems.push("só reserva " + lo + " MB");
+    else if (lo < 400) warns.push("só reserva " + lo + " MB (precisa da versão leve)");
+    // crescer a memória aos poucos (como o jogo faz)
+    var grown = 0;
+    try { var gm = new WebAssembly.Memory({ initial: 16 * 64, maximum: 16 * 2048 }); for (var gi = 0; gi < 64; gi++) { gm.grow(16 * 16); grown = 64 + (gi + 1) * 16; } gm = null; } catch (e) {}
+    add("Crescer a memória até", grown + " MB", grown >= 400 ? "ok" : "warn");
   }
 
   // WebGL
@@ -97,21 +111,30 @@
   else vd.textContent = "Tudo certo para o jogo abrir.";
 
   // código curto para mandar por mensagem
-  var code = [mem || "?", navigator.hardwareConcurrency || "?", is64 ? 64 : 32, wasm ? 1 : 0, gl2 ? 2 : (gl1 ? 1 : 0), problems.length, warns.length].join("-");
+  var code = [window.__maxMB || "?", mem || "?", navigator.hardwareConcurrency || "?", is64 ? 64 : 32, wasm ? 1 : 0, gl2 ? 2 : (gl1 ? 1 : 0), problems.length, warns.length].join("-");
   document.getElementById("code").textContent = "Código: " + code + " · " + ua;
 
-  // teclas do controle remoto
-  var seen = [];
-  function logKey(kind, e) {
-    var s = kind + ": " + (e.key || "?") + " (" + (e.keyCode || e.which || "?") + ")";
-    seen.push(s); if (seen.length > 8) seen.shift();
-    document.getElementById("keys").textContent = "Teclas do controle: " + seen.join("  ·  ");
+  // teclas e cliques do controle remoto: mostra tudo o que chega (para descobrir o que o botão do meio envia)
+  var seen = [], t0 = performance.now();
+  function show(txt) {
+    seen.push(txt); if (seen.length > 10) seen.shift();
+    document.getElementById("keys").innerHTML = "<b>O que o controle enviou:</b><br>" + seen.join("<br>");
   }
-  document.addEventListener("keydown", function (e) { logKey("tecla", e); if (/^Arrow/.test(e.key || "")) e.preventDefault(); }, true);
-  document.addEventListener("mousemove", function (e) { var k = document.getElementById("keys"); k.dataset.mouse = "1"; }, true);
-  document.addEventListener("mousedown", function (e) { logKey("mouse", { key: "clique " + e.clientX + "," + e.clientY, keyCode: e.button }); }, true);
-  document.addEventListener("touchstart", function (e) { logKey("toque", { key: "toque", keyCode: e.touches.length }); }, true);
-  document.getElementById("b").onclick = function () { logKey("botão", { key: "clicado", keyCode: "ok" }); };
+  function ms() { return Math.round(performance.now() - t0) + "ms"; }
+  ["keydown", "keyup"].forEach(function (t) {
+    document.addEventListener(t, function (e) {
+      show(ms() + " " + t + " key=" + (e.key || "?") + " code=" + (e.code || "?") + " keyCode=" + (e.keyCode || 0));
+      if (/^Arrow/.test(e.key || "")) e.preventDefault();
+    }, true);
+  });
+  ["mousedown", "mouseup", "click", "pointerdown", "pointerup", "touchstart", "touchend"].forEach(function (t) {
+    document.addEventListener(t, function (e) {
+      var x = e.clientX, y = e.clientY;
+      if (e.changedTouches && e.changedTouches[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
+      show(ms() + " " + t + " em " + Math.round(x || 0) + "," + Math.round(y || 0) + (e.pointerType ? " (" + e.pointerType + ")" : "") + (e.button !== undefined ? " botão " + e.button : ""));
+    }, true);
+  });
+  document.getElementById("b").onclick = function () { show(ms() + " BOTÃO DE TESTE CLICADO"); };
   try { document.getElementById("b").focus({ preventScroll: true }); } catch (e) {}
 })();
 </script>
