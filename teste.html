@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castelinho Vivo — teste do aparelho</title>
+<style>
+  html, body { margin: 0; background: #0e2a1c; color: #faf0d7; font-family: "Trebuchet MS", system-ui, sans-serif; }
+  body { padding: 2vw 3vw; }
+  h1 { margin: 0 0 .3em; font-size: 4vw; color: #ebc786; }
+  p.sub { margin: 0 0 1.2em; font-size: 1.8vw; opacity: .85; }
+  #verdict { font-size: 2.6vw; font-weight: 800; padding: .5em .8em; border-radius: 14px; margin-bottom: .8em; background: #1f5a3c; border: 3px solid #c2702e; }
+  table { border-collapse: collapse; width: 100%; font-size: 1.6vw; }
+  td { padding: .25em .5em; border-bottom: 1px solid rgba(255,255,255,.12); vertical-align: top; }
+  td:first-child { width: 32%; color: #ebc786; }
+  .ok { color: #9be39b; } .bad { color: #ff9c8a; font-weight: 700; } .warn { color: #ffd479; }
+  #keys { margin-top: 1em; font-size: 1.8vw; padding: .6em; border: 2px dashed #c2702e; border-radius: 12px; min-height: 3em; }
+  #code { margin-top: .8em; font-size: 1.5vw; word-break: break-all; opacity: .9; }
+  button { font: inherit; font-size: 2vw; padding: .4em 1em; border-radius: 999px; border: 3px solid #ebc786; background: #2e8b57; color: #faf0d7; }
+  button:focus { outline: 4px solid #ffd479; }
+</style>
+</head>
+<body>
+<h1>Castelinho Vivo — teste do aparelho</h1>
+<p class="sub">Abra esta página no navegador do projetor. Depois aperte as setas e o OK do controle e tire uma foto da tela.</p>
+<div id="verdict">Testando…</div>
+<table id="t"></table>
+<div id="keys">Teclas do controle: (aperte as setas e o OK)</div>
+<p><button id="b" type="button">Botão de teste (OK aqui)</button></p>
+<div id="code"></div>
+<script>
+(function () {
+  var rows = [], problems = [], warns = [];
+  function add(name, value, cls) { rows.push([name, value, cls || ""]); }
+  var ua = navigator.userAgent || "";
+  add("Navegador", ua);
+  add("Tela", screen.width + "×" + screen.height + " (janela " + innerWidth + "×" + innerHeight + ", densidade " + (devicePixelRatio || 1) + ")");
+  var mem = navigator.deviceMemory;
+  add("Memória (RAM)", mem ? mem + " GB" : "não informado", mem && mem < 2 ? "warn" : "");
+  if (mem && mem < 2) warns.push("pouca memória");
+  add("Núcleos", navigator.hardwareConcurrency || "não informado");
+  var is64 = /aarch64|arm64|x86_64|x64|Win64|WOW64/i.test(ua + " " + (navigator.platform || ""));
+  add("Plataforma", (navigator.platform || "?") + (is64 ? " (64 bits)" : " (provavelmente 32 bits)"), is64 ? "" : "warn");
+
+  // WebAssembly
+  var wasm = typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function";
+  add("WebAssembly", wasm ? "sim" : "NÃO", wasm ? "ok" : "bad");
+  if (!wasm) problems.push("sem WebAssembly");
+  if (wasm) {
+    var tests = [[2048, "2 GB"], [4096, "4 GB"]];
+    tests.forEach(function (t) {
+      var ok = false;
+      try { var m = new WebAssembly.Memory({ initial: 512, maximum: t[0] * 16 }); ok = !!m; m = null; } catch (e) { ok = false; }
+      add("Memória do jogo até " + t[1], ok ? "sim" : "não", ok ? "ok" : (t[0] === 4096 ? "warn" : "bad"));
+      if (!ok && t[0] === 4096) warns.push("limite de 4 GB recusado");
+      if (!ok && t[0] === 2048) problems.push("memória do jogo recusada");
+    });
+    try { var big = new WebAssembly.Memory({ initial: 16 * 400 }); add("Reservar 400 MB agora", "sim", "ok"); big = null; }
+    catch (e) { add("Reservar 400 MB agora", "não (" + e.message + ")", "bad"); problems.push("não reserva 400 MB"); }
+  }
+
+  // WebGL
+  var c = document.createElement("canvas"), gl2 = null, gl1 = null;
+  try { gl2 = c.getContext("webgl2"); } catch (e) {}
+  if (!gl2) { try { gl1 = c.getContext("webgl") || c.getContext("experimental-webgl"); } catch (e) {} }
+  var gl = gl2 || gl1;
+  add("WebGL 2", gl2 ? "sim" : "NÃO", gl2 ? "ok" : "bad");
+  if (!gl2) problems.push(gl1 ? "só WebGL 1" : "sem WebGL");
+  if (gl) {
+    var dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    add("Placa de vídeo", dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) + " / " + gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.RENDERER));
+    add("Textura máxima", gl.getParameter(gl.MAX_TEXTURE_SIZE) + " px", gl.getParameter(gl.MAX_TEXTURE_SIZE) < 4096 ? "warn" : "");
+    var astc = !!gl.getExtension("WEBGL_compressed_texture_astc"), etc = !!gl.getExtension("WEBGL_compressed_texture_etc"), dxt = !!gl.getExtension("WEBGL_compressed_texture_s3tc");
+    add("Imagens ASTC / ETC2 / DXT", (astc ? "ASTC sim" : "ASTC não") + " · " + (etc ? "ETC2 sim" : "ETC2 não") + " · " + (dxt ? "DXT sim" : "DXT não"), astc || dxt ? "ok" : "bad");
+    if (!astc && !dxt) problems.push("sem formato de imagem compatível (ASTC/DXT)");
+    var lose = gl.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext();
+  }
+
+  // vídeo e áudio
+  var v = document.createElement("video");
+  var h264 = v.canPlayType('video/mp4; codecs="avc1.640028"') || v.canPlayType("video/mp4");
+  add("Vídeo MP4 (H.264)", h264 || "NÃO", h264 ? "ok" : "bad");
+  if (!h264) problems.push("não toca MP4");
+  var ac = window.AudioContext || window.webkitAudioContext;
+  add("Áudio (Web Audio)", ac ? "sim" : "NÃO", ac ? "ok" : "bad");
+  if (!ac) problems.push("sem Web Audio");
+  add("Tela cheia", (document.fullscreenEnabled || document.webkitFullscreenEnabled) ? "sim" : "não", "");
+  add("Toque", (navigator.maxTouchPoints || 0) > 0 ? "sim (" + navigator.maxTouchPoints + " pontos)" : "não");
+  add("Armazenamento (cache do jogo)", ("indexedDB" in window) ? "sim" : "não", ("indexedDB" in window) ? "ok" : "warn");
+
+  var html = "";
+  rows.forEach(function (r) { html += "<tr><td>" + r[0] + "</td><td class='" + r[2] + "'>" + String(r[1]).replace(/</g, "&lt;") + "</td></tr>"; });
+  document.getElementById("t").innerHTML = html;
+  var vd = document.getElementById("verdict");
+  if (problems.length) { vd.textContent = "Não deve abrir: " + problems.join(", "); vd.style.background = "#6b1d14"; }
+  else if (warns.length) { vd.textContent = "Deve abrir, com cuidado: " + warns.join(", "); vd.style.background = "#6b5314"; }
+  else vd.textContent = "Tudo certo para o jogo abrir.";
+
+  // código curto para mandar por mensagem
+  var code = [mem || "?", navigator.hardwareConcurrency || "?", is64 ? 64 : 32, wasm ? 1 : 0, gl2 ? 2 : (gl1 ? 1 : 0), problems.length, warns.length].join("-");
+  document.getElementById("code").textContent = "Código: " + code + " · " + ua;
+
+  // teclas do controle remoto
+  var seen = [];
+  function logKey(kind, e) {
+    var s = kind + ": " + (e.key || "?") + " (" + (e.keyCode || e.which || "?") + ")";
+    seen.push(s); if (seen.length > 8) seen.shift();
+    document.getElementById("keys").textContent = "Teclas do controle: " + seen.join("  ·  ");
+  }
+  document.addEventListener("keydown", function (e) { logKey("tecla", e); if (/^Arrow/.test(e.key || "")) e.preventDefault(); }, true);
+  document.addEventListener("mousemove", function (e) { var k = document.getElementById("keys"); k.dataset.mouse = "1"; }, true);
+  document.addEventListener("mousedown", function (e) { logKey("mouse", { key: "clique " + e.clientX + "," + e.clientY, keyCode: e.button }); }, true);
+  document.addEventListener("touchstart", function (e) { logKey("toque", { key: "toque", keyCode: e.touches.length }); }, true);
+  document.getElementById("b").onclick = function () { logKey("botão", { key: "clicado", keyCode: "ok" }); };
+  try { document.getElementById("b").focus({ preventScroll: true }); } catch (e) {}
+})();
+</script>
+</body>
+</html>
