@@ -266,6 +266,23 @@
       okRelease();
     }, true);
 
+    // ---- cliques rápidos: o botão do meio do controle "air mouse" aperta e solta em ~15 ms e, no projetor (lento),
+    //      o jogo podia não ver o clique. O "soltar" espera o jogo desenhar pelo menos 2 quadros.
+    var frameNo = 0; (function tick() { frameNo++; requestAnimationFrame(tick); })();
+    var downFrame = -10, downTime = 0;
+    window.addEventListener("mousedown", function (e) { if (e.isTrusted) { downFrame = frameNo; downTime = performance.now(); } }, true);
+    window.addEventListener("mouseup", function (e) {
+      if (!e.isTrusted || !ok.started) return;
+      if (frameNo - downFrame >= 2 && performance.now() - downTime >= 60) return;
+      e.stopImmediatePropagation();
+      var init = { bubbles: true, cancelable: true, view: window, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, button: e.button, buttons: e.buttons };
+      var target = e.target, f0 = downFrame, t0 = downTime;
+      (function wait() {
+        if (frameNo - f0 >= 2 && performance.now() - t0 >= 60) target.dispatchEvent(new MouseEvent("mouseup", init));
+        else requestAnimationFrame(wait);
+      })();
+    }, true);
+
     var buildUrl = "Build";
     var config = {
       arguments: [],
