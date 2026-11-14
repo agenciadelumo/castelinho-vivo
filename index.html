@@ -284,11 +284,13 @@
     }, true);
 
     var buildUrl = "Build";
+    // projetor/TV: versão leve (imagens menores e memória fixa), feita junto com as outras (Build/Projetor.*)
+    var useProj = isTV && !/[?&]proj=0/.test(location.search);
     var config = {
       arguments: [],
-      dataUrl: buildUrl + (useASTC ? "/Mobile.data.unityweb" : "/Web.data.unityweb"),
-      frameworkUrl: buildUrl + "/Web.framework.js.unityweb",
-      codeUrl: buildUrl + "/Web.wasm.unityweb",
+      dataUrl: buildUrl + (useProj ? "/Projetor.data.unityweb" : useASTC ? "/Mobile.data.unityweb" : "/Web.data.unityweb"),
+      frameworkUrl: buildUrl + (useProj ? "/Projetor.framework.js.unityweb" : "/Web.framework.js.unityweb"),
+      codeUrl: buildUrl + (useProj ? "/Projetor.wasm.unityweb" : "/Web.wasm.unityweb"),
       streamingAssetsUrl: "StreamingAssets",
       companyName: "Delumo",
       productName: "Castelinho Vivo",
