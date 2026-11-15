@@ -4,7 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0e2a1c">
-  <meta name="description" content="Castelinho Vivo — Desafios da Aventura. Um jogo sobre a história de Erechim e do Castelinho.">
+  <meta name="description" content="Castelinho Vivo é o jogo do Castelinho de Erechim (RS): um game online e gratuito com caça-palavras, quebra-cabeça, mesa de pistas e escape room que contam a história da cidade. Jogue no celular ou no computador.">
+  <meta name="keywords" content="castelinho, castelinho jogo, jogo do castelinho, game castelinho, castelinho vivo, castelinho erechim, jogo de erechim, frinape 2026, jogo educativo">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://castelinho.delumo.com.br/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Castelinho Vivo">
+  <meta property="og:title" content="Castelinho Vivo — o jogo do Castelinho de Erechim">
+  <meta property="og:description" content="Game online e gratuito sobre o Castelinho e a história de Erechim. Jogue no celular ou no computador.">
+  <meta property="og:url" content="https://castelinho.delumo.com.br/">
+  <meta property="og:image" content="https://castelinho.delumo.com.br/refs/g05.jpg">
+  <meta property="og:image:width" content="2048">
+  <meta property="og:image:height" content="1156">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://castelinho.delumo.com.br/refs/g05.jpg">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "VideoGame",
+   "name": "Castelinho Vivo — Desafios da Aventura",
+   "alternateName": ["Castelinho Vivo", "Jogo do Castelinho", "Castelinho jogo", "Game Castelinho"],
+   "url": "https://castelinho.delumo.com.br/",
+   "image": "https://castelinho.delumo.com.br/refs/g05.jpg",
+   "description": "Jogo online e gratuito sobre o Castelinho de Erechim (RS) e a história da cidade: caça-palavras, quebra-cabeça, mesa de pistas e escape room, em quatro fases.",
+   "genre": ["Educativo", "Quebra-cabeça", "Aventura"],
+   "inLanguage": "pt-BR",
+   "gamePlatform": ["Navegador", "Android", "iPhone", "Computador"],
+   "applicationCategory": "Game",
+   "operatingSystem": "Web",
+   "isAccessibleForFree": true,
+   "offers": {"@type": "Offer", "price": "0", "priceCurrency": "BRL"},
+   "audience": {"@type": "PeopleAudience", "suggestedMinAge": 7},
+   "contentLocation": {"@type": "Place", "name": "Castelinho de Erechim", "address": {"@type": "PostalAddress", "addressLocality": "Erechim", "addressRegion": "RS", "addressCountry": "BR"}},
+   "publisher": {"@type": "Organization", "name": "Delumo", "url": "https://delumo.com.br/"}}
+  </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,7 +44,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <title>Castelinho Vivo — Desafios da Aventura</title>
+  <title>Castelinho Vivo — Jogo do Castelinho de Erechim | Game online grátis</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0e2a1c; }
     body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
@@ -40,6 +72,8 @@
     #fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ebc786, #c2702e); transition: width .25s ease; }
     #pct { font-size: 16px; opacity: .85; min-height: 20px; }
     #hint { font-size: 14px; opacity: .65; max-width: 520px; }
+    #about { margin: -6px 0 0; font-size: clamp(13px, 1.6vw, 17px); color: #faf0d7; opacity: .8; max-width: 620px; line-height: 1.4; }
+    #title { margin: 0; }
     #err { display: none; color: #ffd2c4; max-width: 560px; font-size: 16px; }
     #startLumi { display: none; width: clamp(90px, 16vh, 150px); height: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); animation: lumiBob 2.4s ease-in-out infinite; }
     #start { display: none; align-items: center; gap: 12px; border: 3px solid #ebc786; border-radius: 999px; padding: 16px 34px;
@@ -123,8 +157,9 @@
 
   <div id="loader">
     <img id="startLumi" src="lumi.png" alt="">
-    <div id="title">Castelinho Vivo</div>
+    <h1 id="title">Castelinho Vivo</h1>
     <div id="sub">Desafios da Aventura</div>
+    <p id="about">O jogo do Castelinho de Erechim: caça-palavras, quebra-cabeça, mesa de pistas e escape room que contam a história da cidade. Grátis, no celular ou no computador.</p>
     <div id="bar"><div id="fill"></div></div>
     <div id="pct">Carregando…</div>
     <button id="start" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 L20 12 L7 20 Z" fill="#faf0d7"/></svg>Tocar para começar</button>

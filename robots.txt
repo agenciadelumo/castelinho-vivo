@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /teste.html
+
+Sitemap: https://castelinho.delumo.com.br/sitemap.xml
